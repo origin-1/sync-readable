@@ -1,0 +1,39 @@
+{
+  "name": "sync-readable",
+  "version": "0.0.1",
+  "description": "Synchronize a function that returns a Node.js readable stream.",
+  "keywords": [
+    "readable",
+    "readablestream",
+    "readable-stream",
+    "stream",
+    "streams",
+    "sync",
+    "synchronize"
+  ],
+  "license": "ISC",
+  "author": "Francesco Trotta <ft@fasttime.org> (https://github.com/fasttime)",
+  "files": [
+    "index.*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/origin-1/sync-readable.git"
+  },
+  "scripts": {
+    "build": "npm install && npm run build-no-install",
+    "build-no-install": "npm run clean && npm run lint && npm run coverage",
+    "clean": "node dev/clean.mjs",
+    "coverage": "node dev/coverage.mjs",
+    "lint": "eslint .",
+    "release": "git add CHANGELOG.md && npm version -f -m \"release %s\"",
+    "test": "mocha --check-leaks test.js"
+  },
+  "devDependencies": {
+    "@origin-1/eslint-config": "latest",
+    "c8js": "latest",
+    "es6-promise": "latest",
+    "eslint": "latest",
+    "mocha": "3"
+  }
+}
