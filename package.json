@@ -1,6 +1,6 @@
 {
   "name": "sync-readable",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Synchronize a function that returns a Node.js readable stream.",
   "keywords": [
     "readable",
