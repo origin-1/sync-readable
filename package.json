@@ -35,5 +35,8 @@
     "es6-promise": "latest",
     "eslint": "latest",
     "mocha": "3"
+  },
+  "dependencies": {
+    "@types/node": "*"
   }
 }
