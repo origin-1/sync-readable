@@ -8,7 +8,22 @@ var syncReadable    = require('./index');
 require('es6-promise/auto');
 
 var Duplex          = stream.Duplex;
+var Readable        = stream.Readable;
+var Stream          = stream.Stream;
 var Transform       = stream.Transform;
+
+function assertDataList(actualDataList, expectedDataList)
+{
+    var dataListLength = expectedDataList.length;
+    assert.strictEqual(actualDataList.length, dataListLength);
+    for (var index = 0; index < dataListLength; ++index)
+    {
+        var actualData      = actualDataList[index];
+        var expectedData    = expectedDataList[index];
+        assert.strictEqual
+        (actualData, expectedData, 'data at index ' + index + ' does not match');
+    }
+}
 
 function createDataStreamAsync(dataList)
 {
@@ -70,6 +85,60 @@ function createErrorStreamSync(error)
     return stream;
 }
 
+// A legacy stream with no internal state objects.
+// Like other legacy streams, it emits a "close" event immediately after "end".
+function createLegacyDataStreamSync(dataList)
+{
+    var stream = new Stream();
+    stream.readable = true;
+    var index = 0;
+    var intervalId =
+    setInterval
+    (
+        function ()
+        {
+            if (index < dataList.length)
+                stream.emit('data', dataList[index++]);
+            else
+            {
+                clearTimeout(intervalId);
+                stream.readable = false;
+                stream.emit('end');
+                stream.emit('close');
+            }
+        },
+        1
+    );
+    return stream;
+}
+
+// A transform stream with a readable side in object mode and a writable side in byte mode.
+function createMixedModeDataStreamAsync(dataList)
+{
+    var stream = createMixedModeDataStreamSync(dataList);
+    var promise = Promise.resolve(stream);
+    return promise;
+}
+
+function createMixedModeDataStreamSync(dataList)
+{
+    var dataIndex = 0;
+    var transform =
+    function (chunk, encoding, callback)
+    {
+        callback(null, dataList[dataIndex++]);
+    };
+    var stream = new Transform({ readableObjectMode: true, transform: transform });
+    if (stream._transform !== transform)
+        stream._transform = transform;
+    // The option `readableObjectMode` is not supported in Node.js 0.10.
+    stream._readableState.objectMode = true;
+    for (var index = 0; index < dataList.length; ++index)
+        stream.write('*');
+    stream.end();
+    return stream;
+}
+
 var createPromiseWithResolvers =
 (function ()
 {
@@ -97,7 +166,31 @@ var createPromiseWithResolvers =
 }
 )();
 
+// A readable stream with no writable state.
+function createReadableDataStreamAsync(dataList)
+{
+    var stream = createReadableDataStreamSync(dataList);
+    var promise = Promise.resolve(stream);
+    return promise;
+}
+
+function createReadableDataStreamSync(dataList)
+{
+    var index = 0;
+    var read =
+    function ()
+    {
+        this.push(index < dataList.length ? dataList[index++] : null);
+    };
+    var stream = new Readable({ objectMode: true, read: read });
+    if (stream._read !== read)
+        stream._read = read;
+    return stream;
+}
+
 var createRejection = Promise.reject.bind(Promise);
+
+var createResolution = Promise.resolve.bind(Promise);
 
 function defaultTransform(chunk, encoding, callback)
 {
@@ -119,6 +212,25 @@ function isTransformImplemented(transform)
     return implemented;
 }
 
+function readDataList(stream, expectedDataList, callback)
+{
+    var actualDataList = [];
+    stream.on
+    (
+        'data',
+        function (data) { actualDataList.push(data); }
+    );
+    stream.on
+    (
+        'end',
+        function ()
+        {
+            assertDataList(actualDataList, expectedDataList);
+            callback();
+        }
+    );
+}
+
 describe
 (
     'sync-readable',
@@ -126,38 +238,65 @@ describe
     {
         it
         (
-            'emits data from the input stream',
+            'emits data from an input stream',
             function (callback)
             {
                 var expectedDataList = [42, 'foo', { bar: 'baz' }];
 
                 var stream = syncReadable(createDataStreamAsync)(expectedDataList);
 
-                var actualDataList = [];
-                stream.on
+                readDataList(stream, expectedDataList, callback);
+            }
+        );
+
+        it
+        (
+            'emits data from an input stream with no writable state',
+            function (callback)
+            {
+                var expectedDataList = [42, 'foo', { bar: 'baz' }];
+
+                var stream = syncReadable(createReadableDataStreamAsync)(expectedDataList);
+
+                readDataList(stream, expectedDataList, callback);
+            }
+        );
+
+        it
+        (
+            'emits data from an input stream with different readable and writable modes',
+            function (callback)
+            {
+                var expectedDataList = [42, 'foo', { bar: 'baz' }];
+
+                var stream = syncReadable(createMixedModeDataStreamAsync)(expectedDataList);
+
+                readDataList(stream, expectedDataList, callback);
+            }
+        );
+
+        it
+        (
+            'emits data from a legacy input stream after it has closed',
+            function (callback)
+            {
+                var expectedDataList = [42, 'foo', { bar: 'baz' }];
+                var inStream = createLegacyDataStreamSync(expectedDataList);
+
+                var stream = syncReadable(createResolution)(inStream);
+
+                inStream.on
                 (
-                    'data',
-                    function (data) { actualDataList.push(data); }
-                );
-                stream.on
-                (
-                    'end',
+                    'close',
                     function ()
                     {
-                        var dataListLength = expectedDataList.length;
-                        assert.strictEqual(actualDataList.length, expectedDataList.length);
-                        for (var index = 0; index < dataListLength; ++index)
-                        {
-                            var actualData      = actualDataList[index];
-                            var expectedData    = expectedDataList[index];
-                            assert.strictEqual
-                            (
-                                actualData,
-                                expectedData,
-                                'data at index ' + index + ' does not match'
-                            );
-                        }
-                        callback();
+                        setImmediate
+                        (
+                            function ()
+                            {
+                                readDataList(stream, expectedDataList, callback);
+                            }
+                        );
                     }
                 );
             }
@@ -303,8 +442,7 @@ describe
                         assert(this.destroyed, 'not expected');
                     }
                 );
-                var actualReturnValue = streamDestroyPolyfill.call(stream, Error('Boom!'));
-                assert.strictEqual(actualReturnValue, stream);
+                assert.strictEqual(streamDestroyPolyfill.call(stream, Error('Boom!')), stream);
                 setImmediate
                 (
                     function ()
@@ -342,10 +480,8 @@ describe
                         assert.fail('not expected');
                     }
                 );
-                var actualReturnValue = streamDestroyPolyfill.call(stream);
-                assert.strictEqual(actualReturnValue, stream);
-                var actualReturnValue = streamDestroyPolyfill.call(stream, Error('Boom!'));
-                assert.strictEqual(actualReturnValue, stream);
+                assert.strictEqual(streamDestroyPolyfill.call(stream), stream);
+                assert.strictEqual(streamDestroyPolyfill.call(stream, Error('Boom!')), stream);
                 setImmediate
                 (
                     function ()

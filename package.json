@@ -29,14 +29,14 @@
     "release": "git add CHANGELOG.md && npm version -f -m \"release %s\"",
     "test": "mocha --check-leaks test.js"
   },
+  "dependencies": {
+    "@types/node": "*"
+  },
   "devDependencies": {
     "@origin-1/eslint-config": "latest",
     "c8js": "latest",
     "es6-promise": "latest",
     "eslint": "latest",
     "mocha": "3"
-  },
-  "dependencies": {
-    "@types/node": "*"
   }
 }

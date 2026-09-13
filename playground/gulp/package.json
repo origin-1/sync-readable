@@ -1,0 +1,9 @@
+{
+  "type": "commonjs",
+  "devDependencies": {
+    "gulp": "^5.0.1",
+    "gulp-eslint-new": "^2.6.2",
+    "gulp-jsdoc3": "^3.0.0",
+    "sync-readable": "file:../../"
+  }
+}

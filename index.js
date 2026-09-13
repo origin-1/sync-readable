@@ -1,26 +1,43 @@
 'use strict';
 
+var OBJECT_MODE_HIGH_WATER_MARK = 16;
+
 var PassThrough = require('stream').PassThrough;
 
-function copyStateProperties(src, dest)
+function configureState(inState, outState)
 {
-    dest.highWaterMark  = src.highWaterMark;
-    dest.objectMode     = src.objectMode;
+    if (inState)
+    {
+        var highWaterMark   = inState.highWaterMark;
+        var objectMode      = inState.objectMode;
+    }
+    if (typeof highWaterMark === 'number' && typeof objectMode === 'boolean')
+        outState.highWaterMark = highWaterMark;
+    // Don't assign a default highWaterMark for byte mode streams.
+    else if (objectMode !== false)
+        outState.highWaterMark = OBJECT_MODE_HIGH_WATER_MARK;
+    if (typeof objectMode !== 'boolean')
+        objectMode = true;
+    outState.objectMode = objectMode;
 }
 
 function createOnFulfilled(outStream)
 {
     return function (inStream)
     {
-        copyStateProperties(inStream._readableState, outStream._readableState);
-        copyStateProperties(inStream._writableState, outStream._writableState);
+        var inReadableState     = inStream._readableState;
+        var outReadableState    = outStream._readableState;
+        var outWritableState    = outStream._writableState;
+        configureState(inReadableState, outReadableState);
+        configureState(inReadableState, outWritableState);
         inStream.pipe(outStream);
         inStream.on
         (
             'close',
             function ()
             {
-                outStream.destroy();
+                if (!outWritableState.ended || !outReadableState.length && !outWritableState.length)
+                    outStream.destroy();
             }
         );
         inStream.on
