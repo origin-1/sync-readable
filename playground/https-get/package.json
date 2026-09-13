@@ -1,0 +1,6 @@
+{
+  "type": "commonjs",
+  "devDependencies": {
+    "sync-readable": "file:../../"
+  }
+}
