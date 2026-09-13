@@ -22,7 +22,6 @@ createConfig
     {
         files:              ['*.ts'],
         tsVersion:          '2.0.0',
-        languageOptions:    { parserOptions: { project: 'tsconfig.json' } },
     },
     {
         files:              ['dev'],

@@ -1,6 +1,11 @@
-name: Node.js CI
+name: JScrewIt Node.js CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+  pull_request:
+    branches: ['**']
 
 jobs:
 
@@ -9,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        node-version: '24'
     - run: npm install
     - run: npm run lint
 
@@ -24,11 +29,25 @@ jobs:
 
     strategy:
       matrix:
-        node-version: ['0.10', '0.12', '4', '6', '8', '10', '12', '14', '16', '18', '20', '21']
+        node-version:
+        - '0.10'
+        - '0.12'
+        - '4'
+        - '6'
+        - '8'
+        - '10'
+        - '12'
+        - '14'
+        - '16'
+        - '18'
+        - '20'
+        - '22'
+        - '24'
+        - '26'
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v7
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm install -D es6-promise mocha@3
